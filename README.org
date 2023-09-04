@@ -1,0 +1,119 @@
+# -*- eval: (visual-line-mode 1); org-confirm-babel-evaluate: nil -*-
+#+STARTUP: showall
+
+[[https://melpa.org/#/ob-julia-vterm][file:https://melpa.org/packages/ob-julia-vterm-badge.svg]]
+[[https://stable.melpa.org/#/ob-julia-vterm][file:https://stable.melpa.org/packages/ob-julia-vterm-badge.svg]]
+
+* ob-julia-vterm
+
+Ob-julia-vterm provides Org Babel support for [[https://julialang.org/][the Julia Programming Language]].
+
+[[https://orgmode.org/worg/org-contrib/babel/index.html][Babel]] is a function of the Emacs Org-mode that provides ability of executing code in various programming languages in Org buffers. With ob-julia-vterm, you can embed and execute Julia code and also capture the results in your Org documents.
+
+** Installation
+
+You need to have [[https://github.com/shg/julia-vterm.el][julia-vterm]] installed in Emacs.
+
+You can install ob-julia-vterm from MELPA. If you want to install it manually, download ob-julia-vterm.el into somewhere in your local directory and install it with the following.
+
+#+BEGIN_SRC emacs-lisp
+(package-install-file "/path-to-download-dir/ob-julia-vterm.el")
+#+END_SRC
+
+You need to enable julia-vterm code block evaluation by customizing org-babel-load-languages or by adding the following lines to your init file.
+
+#+BEGIN_SRC emacs-lisp
+(require 'org)
+(add-to-list 'org-babel-load-languages '(julia-vterm . t))
+(org-babel-do-load-languages 'org-babel-load-languages org-babel-load-languages)
+#+END_SRC
+
+By default, you need to specify ~julia-vterm~ as the language name for source blocks. To use ~julia~ as the language name, define the following aliases.
+
+#+BEGIN_SRC emacs-lisp
+(defalias 'org-babel-execute:julia 'org-babel-execute:julia-vterm)
+(defalias 'org-babel-variable-assignments:julia 'org-babel-variable-assignments:julia-vterm)
+#+END_SRC
+
+** Features
+
+- A src code block with ~julia-vterm~ (or ~julia~ if you define the above aliases) specified as language will be executed with ~C-c C-c~ (~org-babel-execute-src-block~). The code is sent to a julia-vterm REPL and the result is inserted below the src code block.
+- You can specify ~value~ (functional mode, default) or ~output~ (scripting mode) for ~:results~.
+- The results in ~value~ mode are formatted as ~text/plain~ MIME type as in the REPL. To have the results in source code format, specify ~pp~ in the ~:results~ header argument.
+- Long Arrays in ~value~ results are truncated using ellipses by default. To show the full result without omission, specify ~nolimit~ in the ~:results~ header argument.
+- For graphics output (plots), specify ~file~ and ~graphics~ for ~:results~ and filename with ~:file~. Then in the code block, save the output image with the filename. A link to the image is inserted as the result. It can be inline-displayed by Org.
+  - For inline display of PDF or GIF/PNG animation, see [[https://github.com/shg/org-inline-pdf.el][org-inline-pdf]] and [[https://github.com/shg/org-inline-anim.el][org-inline-anim]].
+- Session-based evaluation is supported.
+  - Without ~:session~, the code block is executed inside a ~let~ block.
+  - With ~:session~, the code block is executed in ~main~ session.
+  - With ~:session <name>~, the code block is executed in the named session.
+  - Unlike most other ob-* packages, the buffer name for the Julia session will be automatically formatted as ~*julia:<name>*~. So, you can just specify the pure name, such as ~main~ or ~ses1~, for the session name.
+- Passing code block arguments using ~:var~ is supported.
+  - Currently, only a number or a string can be passed.
+  - Another code block or a result of a code block can be referred to and used as the argument.
+- Execution of julia-vterm code blocks is asynchronous by default and does not block Emacs.
+  - As an exception, if you use babel's ~:var~ reference from another block, the referenced ~julia-vterm~ block will be executed synchronously.
+  - At this time, it is not possible to explicitly specify synchronous execution.
+
+*** Examples
+
+#+BEGIN_SRC org
+,#+BEGIN_SRC julia
+2π
+,#+END_SRC
+
+,#+RESULTS:
+: 6.283185307179586
+#+END_SRC
+
+
+#+BEGIN_SRC org
+,#+BEGIN_SRC julia :results output
+println("Hello, Julia!")
+,#+END_SRC
+
+,#+RESULTS:
+: Hello, Julia!
+#+END_SRC
+
+#+BEGIN_SRC org
+,#+BEGIN_SRC julia :results none :session ses1
+x = 12345
+,#+END_SRC
+
+,#+BEGIN_SRC julia :results none :session ses2
+x = 67890
+,#+END_SRC
+
+,#+BEGIN_SRC julia :results value :session ses1
+x
+,#+END_SRC
+
+,#+RESULTS:
+: 12345
+#+END_SRC
+
+#+BEGIN_SRC org
+,#+NAME: radius
+,#+BEGIN_SRC julia :results value
+12.345
+,#+END_SRC
+
+,#+BEGIN_SRC julia :results value :var r = radius
+"The area of a circle with radius of $r is $(π * r ^ 2)."
+,#+END_SRC
+
+,#+RESULTS:
+: The area of the circle with radius of 12.345 is 478.7756573542473.
+#+END_SRC
+
+#+BEGIN_SRC org
+,#+BEGIN_SRC julia :results file graphics :file plot.png :output-dir figs
+using Plots
+scatter(rand(100), rand(100))
+savefig("figs/plot.png")
+,#+END_SRC
+
+,#+RESULTS:
+[[file:figs/plot.png]]
+#+END_SRC
