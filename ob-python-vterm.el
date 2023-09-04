@@ -1,14 +1,14 @@
-;;; ob-julia-vterm.el --- Babel functions for Julia that work with julia-vterm -*- lexical-binding: t -*-
+;;; ob-python-vterm.el --- Babel functions for Python that work with python-vterm -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2020-2023 Shigeaki Nishina
 
 ;; Author: Shigeaki Nishina
 ;; Maintainer: Shigeaki Nishina
 ;; Created: October 31, 2020
-;; URL: https://github.com/shg/ob-julia-vterm.el
-;; Package-Requires: ((emacs "26.1") (julia-vterm "0.16") (queue "0.2"))
+;; URL: https://github.com/shg/ob-python-vterm.el
+;; Package-Requires: ((emacs "26.1") (python-vterm "0.16") (queue "0.2"))
 ;; Version: 0.3
-;; Keywords: julia, org, outlines, literate programming, reproducible research
+;; Keywords: python, org, outlines, literate programming, reproducible research
 
 ;; This file is not part of GNU Emacs.
 
@@ -29,15 +29,15 @@
 
 ;;; Commentary:
 
-;; Org-Babel support for Julia source code block using julia-vterm.
+;; Org-Babel support for Python source code block using python-vterm.
 
 ;;; Requirements:
 
-;; This package uses julia-vterm to run Julia code.
+;; This package uses python-vterm to run Python code.
 ;;
-;; - https://github.com/shg/julia-vterm.el
+;; - https://github.com/shg/python-vterm.el
 ;;
-;; See https://github.com/shg/ob-julia-vterm.el for installation
+;; See https://github.com/shg/ob-python-vterm.el for installation
 ;; instructions.
 
 ;;; Code:
@@ -46,23 +46,23 @@
 (require 'org-id)
 (require 'queue)
 (require 'filenotify)
-(require 'julia-vterm)
+(require 'python-vterm)
 
-(defun ob-julia-vterm-wrap-body (session body)
-  "Make Julia code that execute-s BODY and obtains the results, depending on SESSION."
+(defun ob-python-vterm-wrap-body (session body)
+  "Make Python code that execute-s BODY and obtains the results, depending on SESSION."
   (concat
    (if session "" "let\n")
    body
    (if session "" "\nend\n")))
 
-(defun ob-julia-vterm-make-str-to-run (uuid params src-file out-file)
-  "Make Julia code that execute-s the code in SRC-FILE depending on PARAMS.
+(defun ob-python-vterm-make-str-to-run (uuid params src-file out-file)
+  "Make Python code that execute-s the code in SRC-FILE depending on PARAMS.
 The results are saved in OUT-FILE.  UUID is a unique id assigned
 to the evaluation."
   (format
    (pcase (cdr (assq :result-type params))
      ('output "\
-#OB-JULIA-VTERM_BEGIN %s
+#OB-PYTHON-VTERM_BEGIN %s
 import Logging; let
     out_file = \"%s\"
     open(out_file, \"w\") do io
@@ -84,9 +84,9 @@ import Logging; let
     else
         result
     end
-end #OB-JULIA-VTERM_END\n")
+end #OB-PYTHON-VTERM_END\n")
      ('value "\
-#OB-JULIA-VTERM_BEGIN %s
+#OB-PYTHON-VTERM_BEGIN %s
 import Logging; open(\"%s\", \"w\") do io
     logger = Logging.ConsoleLogger(io)
     try
@@ -112,80 +112,80 @@ import Logging; open(\"%s\", \"w\") do io
         println(logger.stream, msg)
         println(msg)
     end
-end #OB-JULIA-VTERM_END\n"))
+end #OB-PYTHON-VTERM_END\n"))
    (substring uuid 0 8) out-file src-file
    (if (member "pp" (cdr (assq :result-params params))) "true" "false")
    (if (member "nolimit" (cdr (assq :result-params params))) "true" "false")
    (if (not (member (cdr (assq :debug params)) '(nil "no"))) "catch_backtrace()" "")))
 
-(defun org-babel-execute:julia-vterm (body params)
-  "Execute a block of Julia code with Babel.
+(defun org-babel-execute:python-vterm (body params)
+  "Execute a block of Python code with Babel.
 This function is called by `org-babel-execute-src-block'.
 BODY is the contents and PARAMS are header arguments of the code block."
   (let* ((session-name (cdr (assq :session params)))
 	 (session (pcase session-name ('nil "main") ("none" nil) (_ session-name)))
-	 (var-lines (org-babel-variable-assignments:julia-vterm params))
+	 (var-lines (org-babel-variable-assignments:python-vterm params))
 	 (result-params (cdr (assq :result-params params))))
-    (with-current-buffer (julia-vterm-repl-buffer session)
-      (add-hook 'julia-vterm-repl-filter-functions #'ob-julia-vterm-output-filter))
-    (ob-julia-vterm-evaluate (current-buffer)
+    (with-current-buffer (python-vterm-repl-buffer session)
+      (add-hook 'python-vterm-repl-filter-functions #'ob-python-vterm-output-filter))
+    (ob-python-vterm-evaluate (current-buffer)
 			     session
 			     (org-babel-expand-body:generic body params var-lines)
 			     params)))
 
-(defun org-babel-variable-assignments:julia-vterm (params)
-  "Return list of Julia statements assigning variables based on variable-value pairs in PARAMS."
+(defun org-babel-variable-assignments:python-vterm (params)
+  "Return list of Python statements assigning variables based on variable-value pairs in PARAMS."
   (mapcar
    (lambda (pair)
-     (format "%s = %s" (car pair) (ob-julia-vterm-value-to-julia (cdr pair))))
+     (format "%s = %s" (car pair) (ob-python-vterm-value-to-python (cdr pair))))
    (org-babel--get-vars params)))
 
-(defun ob-julia-vterm-escape-string (str)
-  "Escape special characters in STR for Julia variable assignments."
+(defun ob-python-vterm-escape-string (str)
+  "Escape special characters in STR for Python variable assignments."
   (replace-regexp-in-string "\"" "\\\\\"" str))
 
-(defun ob-julia-vterm-value-to-julia (value)
-  "Convert an emacs-lisp VALUE to a string of julia code for the value."
+(defun ob-python-vterm-value-to-python (value)
+  "Convert an emacs-lisp VALUE to a string of python code for the value."
   (cond
    ((listp value) (format "\"%s\"" value))
    ((numberp value) value)
    ((stringp value) (or (org-babel--string-to-number value)
-			(concat "\"" (ob-julia-vterm-escape-string value) "\"")))
-   ((symbolp value) (ob-julia-vterm-escape-string (symbol-name value)))
+			(concat "\"" (ob-python-vterm-escape-string value) "\"")))
+   ((symbolp value) (ob-python-vterm-escape-string (symbol-name value)))
    (t value)))
 
-(defun ob-julia-vterm-check-long-line (str)
+(defun ob-python-vterm-check-long-line (str)
   "Return t if STR is too long for org-babel result."
   (catch 'loop
     (dolist (line (split-string str "\n"))
       (if (> (length line) 12000)
 	  (throw 'loop t)))))
 
-(defvar-local ob-julia-vterm-evaluation-queue nil)
-(defvar-local ob-julia-vterm-evaluation-watches nil)
+(defvar-local ob-python-vterm-evaluation-queue nil)
+(defvar-local ob-python-vterm-evaluation-watches nil)
 
-(defun ob-julia-vterm-add-evaluation-to-evaluation-queue (session evaluation)
+(defun ob-python-vterm-add-evaluation-to-evaluation-queue (session evaluation)
   "Add an EVALUATION of a source block to SESSION's evaluation queue."
-  (with-current-buffer (julia-vterm-repl-buffer session)
-    (if (not (queue-p ob-julia-vterm-evaluation-queue))
-	(setq ob-julia-vterm-evaluation-queue (queue-create)))
-    (queue-append ob-julia-vterm-evaluation-queue evaluation)))
+  (with-current-buffer (python-vterm-repl-buffer session)
+    (if (not (queue-p ob-python-vterm-evaluation-queue))
+	(setq ob-python-vterm-evaluation-queue (queue-create)))
+    (queue-append ob-python-vterm-evaluation-queue evaluation)))
 
-(defun ob-julia-vterm-evaluation-completed-callback-func (session)
+(defun ob-python-vterm-evaluation-completed-callback-func (session)
   "Return a callback function to be called when an evaluation in SESSION is completed."
   (lambda (event)
     (if (eq 'changed (cadr event))
-	(with-current-buffer (julia-vterm-repl-buffer session)
-	  (if (and (queue-p ob-julia-vterm-evaluation-queue)
-		   (> (queue-length ob-julia-vterm-evaluation-queue) 0))
-	      (let-alist (queue-first ob-julia-vterm-evaluation-queue)
+	(with-current-buffer (python-vterm-repl-buffer session)
+	  (if (and (queue-p ob-python-vterm-evaluation-queue)
+		   (> (queue-length ob-python-vterm-evaluation-queue) 0))
+	      (let-alist (queue-first ob-python-vterm-evaluation-queue)
 		(with-current-buffer .buf
 		  (save-excursion
 		    (goto-char .src-block-begin)
 		    (when (and (not (equal .src-block-begin .src-block-end))
 			       (or (eq (org-element-type (org-element-context)) 'src-block)
 				   (eq (org-element-type (org-element-context)) 'inline-src-block)))
-		      (ob-julia-vterm-wait-for-file-change .out-file 10 0.1)
+		      (ob-python-vterm-wait-for-file-change .out-file 10 0.1)
 		      (let ((result (with-temp-buffer
 				      (insert-file-contents .out-file)
 				      (buffer-string)))
@@ -194,7 +194,7 @@ BODY is the contents and PARAMS are header arguments of the code block."
 			       (org-redisplay-inline-images))
 			      ((not (member "none" result-params))
 			       (org-babel-insert-result
-				(if (ob-julia-vterm-check-long-line result)
+				(if (ob-python-vterm-check-long-line result)
 				    "Output suppressed (line too long)"
 				  (org-babel-result-cond result-params
 				    result
@@ -206,31 +206,31 @@ BODY is the contents and PARAMS are header arguments of the code block."
 							  (cdr (assq :rownames .params))))))
 				result-params
 				(org-babel-get-src-block-info 'light))))))))
-		(queue-dequeue ob-julia-vterm-evaluation-queue)
-		(file-notify-rm-watch (cdr (assoc .uuid ob-julia-vterm-evaluation-watches)))
-		(setq ob-julia-vterm-evaluation-watches
-		      (delete (assoc .uuid ob-julia-vterm-evaluation-watches)
-			      ob-julia-vterm-evaluation-watches))
-		(ob-julia-vterm-process-evaluation-queue .session)))))))
+		(queue-dequeue ob-python-vterm-evaluation-queue)
+		(file-notify-rm-watch (cdr (assoc .uuid ob-python-vterm-evaluation-watches)))
+		(setq ob-python-vterm-evaluation-watches
+		      (delete (assoc .uuid ob-python-vterm-evaluation-watches)
+			      ob-python-vterm-evaluation-watches))
+		(ob-python-vterm-process-evaluation-queue .session)))))))
 
-(defvar-local ob-julia-vterm-output-suppress-state nil)
+(defvar-local ob-python-vterm-output-suppress-state nil)
 
-(defun ob-julia-vterm-output-filter (str)
-  "Remove the pasted julia code from STR."
-  (let ((begin (string-match "#OB-JULIA-VTERM_BEGIN" str))
-	(end (string-match "#OB-JULIA-VTERM_END" str))
-	(state ob-julia-vterm-output-suppress-state))
-    (if begin (setq ob-julia-vterm-output-suppress-state 'suppress))
-    (if end (setq ob-julia-vterm-output-suppress-state nil))
+(defun ob-python-vterm-output-filter (str)
+  "Remove the pasted python code from STR."
+  (let ((begin (string-match "#OB-PYTHON-VTERM_BEGIN" str))
+	(end (string-match "#OB-PYTHON-VTERM_END" str))
+	(state ob-python-vterm-output-suppress-state))
+    (if begin (setq ob-python-vterm-output-suppress-state 'suppress))
+    (if end (setq ob-python-vterm-output-suppress-state nil))
     (let* ((str (replace-regexp-in-string
-		 "#OB-JULIA-VTERM_BEGIN \\([0-9a-z]*\\)\\(.*?\n\\)*.*" "Executing... \\1\r\n" str))
+		 "#OB-PYTHON-VTERM_BEGIN \\([0-9a-z]*\\)\\(.*?\n\\)*.*" "Executing... \\1\r\n" str))
 	   (str (replace-regexp-in-string
-		 "\\(.*?\n\\)*.*#OB-JULIA-VTERM_END" "" str)))
+		 "\\(.*?\n\\)*.*#OB-PYTHON-VTERM_END" "" str)))
       (if (or begin end)
 	  str
 	(if state "" str)))))
 
-(defun ob-julia-vterm-wait-for-file-change (file sec interval)
+(defun ob-python-vterm-wait-for-file-change (file sec interval)
   "Wait up to SEC seconds synchronously until FILE becomes non-empty.
 The file is checked at INTERVAL second intervals while waiting."
   (let ((c 0))
@@ -239,64 +239,64 @@ The file is checked at INTERVAL second intervals while waiting."
       (sleep-for interval)
       (setq c (1+ c)))))
 
-(defun ob-julia-vterm-process-one-evaluation-sync (session evaluation)
+(defun ob-python-vterm-process-one-evaluation-sync (session evaluation)
   "Execute the first EVALUATION in SESSION's queue synchronously.
 Return the result."
-  (with-current-buffer (julia-vterm-repl-buffer session)
-    (while (not (eq (julia-vterm-repl-buffer-status) :julia))
+  (with-current-buffer (python-vterm-repl-buffer session)
+    (while (not (eq (python-vterm-repl-buffer-status) :python))
       (message "Waiting REPL becomes ready")
       (sleep-for 0.1))
     (let-alist evaluation
-      (julia-vterm-paste-string
-       (ob-julia-vterm-make-str-to-run .uuid
+      (python-vterm-paste-string
+       (ob-python-vterm-make-str-to-run .uuid
 				       .params
 				       .src-file
 				       .out-file)
        .session)
-      (ob-julia-vterm-wait-for-file-change .out-file 10 0.1)
+      (ob-python-vterm-wait-for-file-change .out-file 10 0.1)
       (with-temp-buffer
 	(insert-file-contents .out-file)
 	(buffer-string)))))
 
-(defun ob-julia-vterm-process-one-evaluation-async (session)
+(defun ob-python-vterm-process-one-evaluation-async (session)
   "Execute the first evaluation in SESSION's queue asynchronously.
 Always return nil."
-  (with-current-buffer (julia-vterm-repl-buffer session)
-    (if (eq (julia-vterm-repl-buffer-status) :julia)
-	(let-alist (queue-first ob-julia-vterm-evaluation-queue)
-	  (unless (assoc .uuid ob-julia-vterm-evaluation-watches)
+  (with-current-buffer (python-vterm-repl-buffer session)
+    (if (eq (python-vterm-repl-buffer-status) :python)
+	(let-alist (queue-first ob-python-vterm-evaluation-queue)
+	  (unless (assoc .uuid ob-python-vterm-evaluation-watches)
 	    (let ((desc (file-notify-add-watch .out-file
 					       '(change)
-					       (ob-julia-vterm-evaluation-completed-callback-func session))))
-	      (push (cons .uuid desc) ob-julia-vterm-evaluation-watches))
-	    (julia-vterm-paste-string
-	     (ob-julia-vterm-make-str-to-run .uuid
+					       (ob-python-vterm-evaluation-completed-callback-func session))))
+	      (push (cons .uuid desc) ob-python-vterm-evaluation-watches))
+	    (python-vterm-paste-string
+	     (ob-python-vterm-make-str-to-run .uuid
 					     .params
 					     .src-file
 					     .out-file)
 	     .session)))
-      (if (null ob-julia-vterm-evaluation-watches)
-	  (run-at-time 0.1 nil #'ob-julia-vterm-process-evaluation-queue session))))
+      (if (null ob-python-vterm-evaluation-watches)
+	  (run-at-time 0.1 nil #'ob-python-vterm-process-evaluation-queue session))))
   nil)
 
-(defun ob-julia-vterm-process-evaluation-queue (session)
+(defun ob-python-vterm-process-evaluation-queue (session)
   "Process the evaluation queue for SESSION.
 If ASYNC is non-nil, the next evaluation will be executed asynchronously."
-  (with-current-buffer (julia-vterm-repl-buffer session)
-    (if (and (queue-p ob-julia-vterm-evaluation-queue)
-	     (not (queue-empty ob-julia-vterm-evaluation-queue)))
-	(ob-julia-vterm-process-one-evaluation-async session)
+  (with-current-buffer (python-vterm-repl-buffer session)
+    (if (and (queue-p ob-python-vterm-evaluation-queue)
+	     (not (queue-empty ob-python-vterm-evaluation-queue)))
+	(ob-python-vterm-process-one-evaluation-async session)
       (message "Queue empty"))))
 
-(defun ob-julia-vterm-evaluate (buf session body params)
-  "Evaluate a Julia code block in BUF in a julia-vterm REPL specified with SESSION.
+(defun ob-python-vterm-evaluate (buf session body params)
+  "Evaluate a Python code block in BUF in a python-vterm REPL specified with SESSION.
 BODY contains the source code to be evaluated, and PARAMS contains header arguments."
   (let* ((uuid (org-id-uuid))
-	 (src-file (org-babel-temp-file "julia-vterm-src-"))
-	 (out-file (org-babel-temp-file "julia-vterm-out-"))
+	 (src-file (org-babel-temp-file "python-vterm-src-"))
+	 (out-file (org-babel-temp-file "python-vterm-out-"))
 	 (result-params (cdr (assq :result-params params)))
 	 (async (not (member 'org-babel-ref-resolve (mapcar #'cadr (backtrace-frames))))))
-    (with-temp-file src-file (insert (ob-julia-vterm-wrap-body session body)))
+    (with-temp-file src-file (insert (ob-python-vterm-wrap-body session body)))
     (let ((elm (org-element-context))
 	  (src-block-begin (make-marker))
 	  (src-block-end (make-marker)))
@@ -312,13 +312,13 @@ BODY contains the source code to be evaluated, and PARAMS contains header argume
 			      (cons 'src-block-begin src-block-begin)
 			      (cons 'src-block-end src-block-end))))
 	(if (not async)
-	    (ob-julia-vterm-process-one-evaluation-sync session evaluation)
-	  (ob-julia-vterm-add-evaluation-to-evaluation-queue session evaluation)
-	  (ob-julia-vterm-process-evaluation-queue session)
+	    (ob-python-vterm-process-one-evaluation-sync session evaluation)
+	  (ob-python-vterm-add-evaluation-to-evaluation-queue session evaluation)
+	  (ob-python-vterm-process-evaluation-queue session)
 	  (concat "Executing... " (substring uuid 0 8)))))))
 
-(add-to-list 'org-src-lang-modes '("julia-vterm" . julia))
+(add-to-list 'org-src-lang-modes '("python-vterm" . python))
 
-(provide 'ob-julia-vterm)
+(provide 'ob-python-vterm)
 
-;;; ob-julia-vterm.el ends here
+;;; ob-python-vterm.el ends here
