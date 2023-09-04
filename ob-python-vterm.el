@@ -4,10 +4,10 @@
 
 ;; Author: Shigeaki Nishina
 ;; Maintainer: Shigeaki Nishina
-;; Created: October 31, 2020
+;; Created: September 4, 2023
 ;; URL: https://github.com/shg/ob-python-vterm.el
-;; Package-Requires: ((emacs "26.1") (python-vterm "0.16") (queue "0.2"))
-;; Version: 0.3
+;; Package-Requires: ((emacs "26.1") (python-vterm "0.1") (queue "0.2"))
+;; Version: 0.1
 ;; Keywords: python, org, outlines, literate programming, reproducible research
 
 ;; This file is not part of GNU Emacs.
