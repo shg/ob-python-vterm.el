@@ -262,7 +262,7 @@ Return the result."
   "Execute the first evaluation in SESSION's queue asynchronously.
 Always return nil."
   (with-current-buffer (python-vterm-repl-buffer session)
-    (if (eq (python-vterm-repl-buffer-status) :python)
+    (if (eq (python-vterm-repl-buffer-status) :ipython)
 	(let-alist (queue-first ob-python-vterm-evaluation-queue)
 	  (unless (assoc .uuid ob-python-vterm-evaluation-watches)
 	    (let ((desc (file-notify-add-watch .out-file
