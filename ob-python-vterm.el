@@ -94,7 +94,7 @@ elif isinstance(st[-1], ast.Expr):
         exec(compile(ast.Module(body=st[:-1], type_ignores=[]), '<string>', 'exec'), g)
     __result = eval(compile(ast.Expression(st[-1].value), '<string>', 'eval'), g)
 else:
-    exec(compile(ast.Module(body=st), '<string>', 'exec'), g)
+    exec(compile(ast.Module(body=st, type_ignores=[]), '<string>', 'exec'), g)
     __result = None
 
 with open('%s', 'w') as file:
