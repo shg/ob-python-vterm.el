@@ -51,9 +51,9 @@
 (defun ob-python-vterm-wrap-body (session body)
   "Make Python code that execute-s BODY and obtains the results, depending on SESSION."
   (concat
-   (if session "" "let\n")
+   (if session "" "")
    body
-   (if session "" "\nend\n")))
+   (if session "\n" "\n")))
 
 (defun ob-python-vterm-make-str-to-run (uuid params src-file out-file)
   "Make Python code that execute-s the code in SRC-FILE depending on PARAMS.
@@ -63,60 +63,50 @@ to the evaluation."
    (pcase (cdr (assq :result-type params))
      ('output "\
 #OB-PYTHON-VTERM_BEGIN %s
-import Logging; let
-    out_file = \"%s\"
-    open(out_file, \"w\") do io
-        logger = Logging.ConsoleLogger(io)
-        redirect_stdout(io) do
-            try
-                include(\"%s\")
-                # %s %s
-            catch e
-                showerror(logger.stream, e, %s)
-            end
-        end
-    end
-    result = open(io -> println(read(io, String)), out_file)
-    if result == nothing
-        open(out_file, \"a\") do io
-            print(io, \"\n\")
-        end
-    else
-        result
-    end
-end #OB-PYTHON-VTERM_END\n")
+import sys
+
+with open('%s', 'r') as file:
+    __code_str = file.read()
+
+__orig_stdout = sys.stdout
+
+with open('%s', 'w') as file:
+    sys.stdout = file
+    exec(__code_str)
+
+sys.stdout = __orig_stdout
+None
+# %s %s %s
+#OB-PYTHON-VTERM_END\n")
      ('value "\
 #OB-PYTHON-VTERM_BEGIN %s
-import Logging; open(\"%s\", \"w\") do io
-    logger = Logging.ConsoleLogger(io)
-    try
-        result = include(\"%s\")
-        if %s
-            if isdefined(Main, :PrettyPrinting) && isdefined(PrettyPrinting, :pprint) ||
-               \"PrettyPrinting\" in [p.name for p in values(Pkg.dependencies())]
-                @eval import PrettyPrinting
-                Base.invokelatest(PrettyPrinting.pprint, io, result)
-            else
-                Base.invokelatest(print, io, result)
-            end
-        else
-            if %s
-                Base.invokelatest(show, io, \"text/plain\", result)
-            else
-                Base.invokelatest(show, IOContext(io, :limit => true), \"text/plain\", result)
-            end
-        end
-        result
-    catch e
-        msg = sprint(showerror, e, %s)
-        println(logger.stream, msg)
-        println(msg)
-    end
-end #OB-PYTHON-VTERM_END\n"))
-   (substring uuid 0 8) out-file src-file
-   (if (member "pp" (cdr (assq :result-params params))) "true" "false")
-   (if (member "nolimit" (cdr (assq :result-params params))) "true" "false")
-   (if (not (member (cdr (assq :debug params)) '(nil "no"))) "catch_backtrace()" "")))
+import ast
+
+with open('%s', 'r') as file:
+    __code_str = file.read()
+
+g = globals()
+st = list(ast.iter_child_nodes(ast.parse(__code_str)))
+if not st:
+    __result = None
+elif isinstance(st[-1], ast.Expr):
+    if len(st) > 1:
+        exec(compile(ast.Module(body=st[:-1], type_ignores=[]), '<string>', 'exec'), g)
+    __result = eval(compile(ast.Expression(st[-1].value), '<string>', 'eval'), g)
+else:
+    exec(compile(ast.Module(body=st), '<string>', 'exec'), g)
+    __result = None
+
+with open('%s', 'w') as file:
+    file.write(str(__result))
+
+__result
+# %s %s %s
+#OB-PYTHON-VTERM_END\n"))
+   (substring uuid 0 8) src-file out-file
+   (if (member "pp" (cdr (assq :result-params params))) "" "")
+   (if (member "nolimit" (cdr (assq :result-params params))) "" "")
+   (if (not (member (cdr (assq :debug params)) '(nil "no"))) "" "")))
 
 (defun org-babel-execute:python-vterm (body params)
   "Execute a block of Python code with Babel.
