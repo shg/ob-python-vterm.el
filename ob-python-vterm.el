@@ -233,7 +233,7 @@ The file is checked at INTERVAL second intervals while waiting."
   "Execute the first EVALUATION in SESSION's queue synchronously.
 Return the result."
   (with-current-buffer (python-vterm-repl-buffer session)
-    (while (not (eq (python-vterm-repl-buffer-status) :python))
+    (while (not (eq (python-vterm-repl-buffer-status) :ipython))
       (message "Waiting REPL becomes ready")
       (sleep-for 0.1))
     (let-alist evaluation
