@@ -286,7 +286,8 @@ If ASYNC is non-nil, the next evaluation will be executed asynchronously."
 (defun ob-python-vterm-abort-evaluation (session)
   "Abort the execution of SESSION by clearing its evaluation queue."
   (with-current-buffer (python-vterm-repl-buffer session)
-    (queue-clear ob-python-vterm-evaluation-queue)))
+    (if (queue-p ob-python-vterm-evaluation-queue)
+        (queue-clear ob-python-vterm-evaluation-queue))))
 
 (defun ob-python-vterm-evaluate (buf session body params)
   "Evaluate a Python code block in BUF in a python-vterm REPL specified with SESSION.
