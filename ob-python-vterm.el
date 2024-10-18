@@ -72,7 +72,10 @@ __orig_stdout = sys.stdout
 
 with open('%s', 'w') as file:
     sys.stdout = file
-    exec(__code_str)
+    try:
+        exec(__code_str)
+    except (NameError, SyntaxError) as e:
+        print(type(e).__name__ + ': ' + str(e))
 
 sys.stdout = __orig_stdout
 None
@@ -86,16 +89,19 @@ with open('%s', 'r') as file:
     __code_str = file.read()
 
 g = globals()
-st = list(ast.iter_child_nodes(ast.parse(__code_str)))
-if not st:
-    __result = None
-elif isinstance(st[-1], ast.Expr):
-    if len(st) > 1:
-        exec(compile(ast.Module(body=st[:-1], type_ignores=[]), '<string>', 'exec'), g)
-    __result = eval(compile(ast.Expression(st[-1].value), '<string>', 'eval'), g)
-else:
-    exec(compile(ast.Module(body=st, type_ignores=[]), '<string>', 'exec'), g)
-    __result = None
+try:
+    st = list(ast.iter_child_nodes(ast.parse(__code_str)))
+    if not st:
+        __result = None
+    elif isinstance(st[-1], ast.Expr):
+        if len(st) > 1:
+            exec(compile(ast.Module(body=st[:-1], type_ignores=[]), '<string>', 'exec'), g)
+        __result = eval(compile(ast.Expression(st[-1].value), '<string>', 'eval'), g)
+    else:
+        exec(compile(ast.Module(body=st, type_ignores=[]), '<string>', 'exec'), g)
+        __result = None
+except (NameError, SyntaxError) as e:
+    __result = type(e).__name__ + ': ' + str(e)
 
 with open('%s', 'w') as file:
     file.write(str(__result))
