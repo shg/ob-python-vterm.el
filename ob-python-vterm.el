@@ -125,9 +125,9 @@ BODY is the contents and PARAMS are header arguments of the code block."
     (with-current-buffer (python-vterm-repl-buffer session)
       (add-hook 'python-vterm-repl-filter-functions #'ob-python-vterm-output-filter))
     (ob-python-vterm-evaluate (current-buffer)
-			     session
-			     (org-babel-expand-body:generic body params var-lines)
-			     params)))
+			      session
+			      (org-babel-expand-body:generic body params var-lines)
+			      params)))
 
 (defun org-babel-variable-assignments:python-vterm (params)
   "Return list of Python statements assigning variables based on variable-value pairs in PARAMS."
@@ -239,9 +239,9 @@ Return the result."
     (let-alist evaluation
       (python-vterm-paste-string
        (ob-python-vterm-make-str-to-run .uuid
-				       .params
-				       .src-file
-				       .out-file)
+				        .params
+				        .src-file
+				        .out-file)
        .session)
       (ob-python-vterm-wait-for-file-change .out-file 10 0.1)
       (with-temp-buffer
@@ -261,9 +261,9 @@ Always return nil."
 	      (push (cons .uuid desc) ob-python-vterm-evaluation-watches))
 	    (python-vterm-paste-string
 	     (ob-python-vterm-make-str-to-run .uuid
-					     .params
-					     .src-file
-					     .out-file)
+					      .params
+					      .src-file
+					      .out-file)
 	     .session)))
       (if (null ob-python-vterm-evaluation-watches)
 	  (run-at-time 0.1 nil #'ob-python-vterm-process-evaluation-queue session))))
