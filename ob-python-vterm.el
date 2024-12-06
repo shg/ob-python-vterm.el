@@ -71,7 +71,10 @@ with open('%s', 'r') as file:
 __orig_stdout = sys.stdout
 
 with open('%s', 'w') as file:
-    sys.stdout = file
+    sys.stdout = type('', (), {
+        'write': lambda self, message: (__orig_stdout.write(message), file.write(message))[0],
+        'flush': lambda self: (__orig_stdout.flush(), file.flush())[0]
+    })()
     try:
         exec(__code_str)
     except (NameError, SyntaxError) as e:
@@ -106,7 +109,7 @@ except (NameError, SyntaxError) as e:
 with open('%s', 'w') as file:
     file.write(str(__result))
 
-__result
+print(__result)
 # %s %s %s
 #OB-PYTHON-VTERM_END\n"))
    (substring uuid 0 8) src-file out-file
