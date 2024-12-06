@@ -114,6 +114,16 @@ __result
    (if (member "nolimit" (cdr (assq :result-params params))) "" "")
    (if (not (member (cdr (assq :debug params)) '(nil "no"))) "" "")))
 
+(defun ob-python-vterm-run-string (string &optional session-name)
+  "Execute STRING in the REPL with the SESSION-NAME.
+The code in the STRING is saved in a temporary file and the file is executed
+with `%run' magic command."
+  (let* ((run-file (org-babel-temp-file "ob-python-vterm-run-"))
+	 (run-cmd (format "%%run \"%s\"\n" run-file)))
+    (with-temp-file run-file
+      (insert string))
+    (python-vterm-paste-string run-cmd session-name)))
+
 (defun org-babel-execute:python-vterm (body params)
   "Execute a block of Python code with Babel.
 This function is called by `org-babel-execute-src-block'.
@@ -122,8 +132,6 @@ BODY is the contents and PARAMS are header arguments of the code block."
 	 (session (pcase session-name ('nil "main") ("none" nil) (_ session-name)))
 	 (var-lines (org-babel-variable-assignments:python-vterm params))
 	 (result-params (cdr (assq :result-params params))))
-    (with-current-buffer (python-vterm-repl-buffer session)
-      (add-hook 'python-vterm-repl-filter-functions #'ob-python-vterm-output-filter))
     (ob-python-vterm-evaluate (current-buffer)
 			      session
 			      (org-babel-expand-body:generic body params var-lines)
@@ -209,17 +217,6 @@ BODY is the contents and PARAMS are header arguments of the code block."
 			      ob-python-vterm-evaluation-watches))
 		(ob-python-vterm-process-evaluation-queue .session)))))))
 
-(defvar-local ob-python-vterm-output-suppress-state nil)
-
-(defun ob-python-vterm-output-filter (str)
-  "Remove the pasted python code from STR."
-  (let ((begin (string-match "#OB-PYTHON-VTERM_BEGIN" str))
-	(end (string-match "#OB-PYTHON-VTERM_END" str))
-	(state ob-python-vterm-output-suppress-state))
-    (if begin (setq ob-python-vterm-output-suppress-state 'suppress))
-    (if end (setq ob-python-vterm-output-suppress-state nil))
-    str))
-
 (defun ob-python-vterm-wait-for-file-change (file sec interval)
   "Wait up to SEC seconds synchronously until FILE becomes non-empty.
 The file is checked at INTERVAL second intervals while waiting."
@@ -237,7 +234,7 @@ Return the result."
       (message "Waiting REPL becomes ready")
       (sleep-for 0.1))
     (let-alist evaluation
-      (python-vterm-paste-string
+      (ob-python-vterm-run-string
        (ob-python-vterm-make-str-to-run .uuid
 				        .params
 				        .src-file
@@ -259,7 +256,7 @@ Always return nil."
 					       '(change)
 					       (ob-python-vterm-evaluation-completed-callback-func session))))
 	      (push (cons .uuid desc) ob-python-vterm-evaluation-watches))
-	    (python-vterm-paste-string
+	    (ob-python-vterm-run-string
 	     (ob-python-vterm-make-str-to-run .uuid
 					      .params
 					      .src-file
