@@ -320,6 +320,65 @@ BODY contains the source code to be evaluated, and PARAMS contains header argume
 
 (add-to-list 'org-src-lang-modes '("python-vterm" . python))
 
+
+;;----------------------------------------------------------------------
+;; A helper minor mode for Org buffer with python-vterm source code blocks.
+
+(defun ob-python-vterm-find-rest (elm lst)
+  (cond ((null lst) nil)
+        ((equal elm (car lst)) lst)
+        (t (ob-python-vterm-find-rest elm (cdr lst)))))
+
+(defun ob-python-vterm-session ()
+  (interactive)
+  (or (if-let ((src-block-info (org-babel-get-src-block-info))
+               (block-ses (assoc :session (caddr src-block-info))))
+          (cdr block-ses))
+      (if-let ((props (org-entry-get-with-inheritance "header-args:python"))
+               (header-args (split-string props)))
+          (cadr (ob-python-vterm-find-rest ":session" header-args)))
+      "main"))
+
+(defun ob-python-vterm-fellow-repl-buffer (&optional session-name)
+  (python-vterm-repl-buffer (or session-name (ob-python-vterm-session))))
+
+(defun ob-python-vterm-switch-to-repl-buffer (&optional arg)
+  "Switch to the paired REPL buffer or to the one with a specified session.
+With prefix ARG, prompt for session name."
+  (interactive "P")
+  (let* ((session-name
+	  (cond ((null arg) nil)
+		(t (completing-read "Session name: " (python-vterm-repl-list-sessions) nil nil nil nil
+				    (python-vterm-repl-session-name (python-vterm-fellow-repl-buffer))))))
+	 (script-buffer (current-buffer))
+	 (repl-buffer (ob-python-vterm-fellow-repl-buffer session-name)))
+    (setq python-vterm-fellow-repl-buffer repl-buffer)
+    (with-current-buffer repl-buffer
+      (setq python-vterm-repl-script-buffer script-buffer)
+      (switch-to-buffer-other-window repl-buffer))))
+
+(defun ob-python-vterm-send-region-or-current-line ()
+  (interactive)
+  (python-vterm-send-region-or-current-line))
+
+(defvar ob-python-vterm-helper-mode-map
+  (let ((map (copy-keymap python-vterm-mode-map)))
+    (define-key map (kbd "C-c C-z") #'ob-python-vterm-switch-to-repl-buffer)
+    (define-key map (kbd "C-<return>") #'ob-python-vterm-send-region-or-current-line)
+    (define-key map (kbd "C-c C-b") #'org-babel-execute-buffer)
+    (define-key map (kbd "C-c C-i") nil t)
+    map))
+
+;;;###autoload
+(define-minor-mode ob-python-vterm-helper-mode
+  "A minor mode for Org buffer with python-vterm source code blocks."
+  :init-value nil
+  :lighter " ⛎"
+  :keymap ob-python-vterm-helper-mode-map
+  (unless (eq major-mode 'org-mode)
+    (user-error "Cannot use `ob-python-vterm-helper-mode' outside Org mode")))
+
+
 (provide 'ob-python-vterm)
 
 ;;; ob-python-vterm.el ends here
