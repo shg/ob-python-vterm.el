@@ -122,7 +122,7 @@ print(__result)
 The code in the STRING is saved in a temporary file and the file is executed
 with `%run' magic command."
   (let* ((run-file (org-babel-temp-file "ob-python-vterm-run-"))
-	 (run-cmd (format "%%run \"%s\"\n" run-file)))
+	 (run-cmd (format "%%run -i \"%s\"\n" run-file)))
     (with-temp-file run-file
       (insert string))
     (python-vterm-paste-string run-cmd session-name)))
