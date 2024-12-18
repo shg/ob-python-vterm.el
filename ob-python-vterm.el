@@ -79,6 +79,8 @@ with open('%s', 'w') as file:
         exec(__code_str)
     except (NameError, SyntaxError) as e:
         print(type(e).__name__ + ': ' + str(e))
+    finally:
+        file.flush()
 
 sys.stdout = __orig_stdout
 None
@@ -108,6 +110,7 @@ except (NameError, SyntaxError) as e:
 
 with open('%s', 'w') as file:
     file.write(str(__result))
+    file.flush()
 
 print(__result)
 # %s %s %s
